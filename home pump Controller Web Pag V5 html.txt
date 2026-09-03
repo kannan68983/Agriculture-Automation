@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Irrigation Console</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            /* Default Dark Theme */
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --fert-color: #10b981;
+            --fert-glow: rgba(16, 185, 129, 0.4);
+            --bw-color: #a855f7;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --input-bg: rgba(0,0,0,0.2);
+            --box-bg: rgba(0,0,0,0.3);
+            --header-bg: rgba(15, 23, 42, 0.85);
+            --border-radius: 16px;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        body.theme-light {
+            --bg-dark: #f1f5f9;
+            --card-bg: #ffffff;
+            --card-border: #cbd5e1;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --input-bg: #f8fafc;
+            --box-bg: #f8fafc;
+            --header-bg: rgba(255, 255, 255, 0.85);
+            --primary-glow: rgba(59, 130, 246, 0.2);
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        body.theme-black {
+            --bg-dark: #000000;
+            --card-bg: #0a0a0a;
+            --card-border: #262626;
+            --text-main: #ffffff;
+            --text-muted: #a3a3a3;
+            --input-bg: #171717;
+            --box-bg: #171717;
+            --header-bg: rgba(0, 0, 0, 0.85);
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; transition: background-color 0.3s, color 0.3s; }
+        
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .login-card { background: var(--card-bg); border: 1px solid var(--card-border); padding: 40px 30px; border-radius: var(--border-radius); width: 90%; max-width: 360px; box-shadow: var(--shadow); text-align: center; }
+        .login-card i { font-size: 40px; color: var(--primary); margin-bottom: 15px; }
+        .login-card h2 { margin: 0 0 5px 0; font-size: 22px; font-weight: 800; }
+        .login-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 25px; }
+        .login-card input { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; padding: 14px; background: var(--input-bg); border: 1px solid var(--card-border); color: var(--text-main); border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 15px; text-align: left; }
+        .login-card input:focus { border-color: var(--primary); outline: none; }
+        .btn-login { background: var(--primary); color: white; border: none; padding: 16px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-login:active { transform: scale(0.97); }
+        #login-error { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 15px; display: none; }
+        
+        #main-app { display: none; padding-bottom: 120px; }
+        .header { background: var(--header-bg); backdrop-filter: blur(12px); padding: 20px; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); }
+        .brand-title { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+        .brand-title i { color: var(--primary); }
+        .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end;}
+        
+        .sys-clock { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text-muted); background: var(--card-bg); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border);}
+        .wifi-status { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-muted); background: var(--input-bg); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); display: flex; align-items: center; gap: 6px; transition: all 0.3s;}
+        .connection-status { font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s;}
+        .status-online { background: rgba(16, 185, 129, 0.1); color: var(--fert-color); border: 1px solid var(--fert-color); }
+        .status-offline { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); }
+        .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background-color: currentColor; box-shadow: 0 0 8px currentColor; animation: pulse 2s infinite; }
+        
+        .btn-theme, .btn-logout { background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; transition: 0.2s; padding: 4px; }
+        .btn-theme:hover { color: var(--primary); }
+        .btn-logout:hover { color: var(--danger); }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes spinAround { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        
+        .top-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 15px; }
+        @media (max-width: 768px) { .top-dashboard { grid-template-columns: 1fr; } }
+        
+        .telemetry-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--border-radius); padding: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; transition: all 0.3s ease; }
+        .telemetry-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--card-border); transition: 0.3s; }
+        .telemetry-active::before { background: var(--primary); box-shadow: 0 0 15px var(--primary); }
+        .telemetry-bw::before { background: var(--bw-color); box-shadow: 0 0 15px var(--bw-color); }
+        .telemetry-error::before { background: var(--danger); box-shadow: 0 0 15px var(--danger); }
+        .telemetry-paused::before { background: var(--danger); box-shadow: 0 0 15px var(--danger); }
+        
+        .telemetry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;}
+        .telemetry-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; margin: 0; }
+        .telemetry-main-status { font-size: 24px; font-weight: 800; margin: 8px 0 4px 0; color: var(--text-main); line-height: 1.2; word-wrap: break-word; }
+        .telemetry-sub { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+        
+        .motor-status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; border-top: 1px solid var(--card-border); padding-top: 15px;}
+        .motor-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-muted); transition: 0.3s; }
+        .motor-indicator i { font-size: 16px; display: inline-block; animation: none; }
+        .motor-on { color: var(--text-main); }
+        .motor-on.m-main i { color: var(--primary); text-shadow: 0 0 12px var(--primary-glow); animation: spinAround 1.5s linear infinite; }
+        .motor-on.m-fert i { color: var(--fert-color); text-shadow: 0 0 12px var(--fert-glow); animation: spinAround 1.5s linear infinite; }
+        
+        .power-status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid var(--card-border); padding-top: 15px; }
+        .power-box { background: var(--input-bg); border: 1px solid var(--card-border); padding: 10px; border-radius: 8px; text-align: center; }
+        .power-label { font-size: 10px; color: var(--text-muted); font-weight: 800; letter-spacing: 1px; margin-bottom: 5px;}
+        .power-val { font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--text-main); }
+        .power-error { color: var(--danger); font-size: 13px; }
+        
+        .weather-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--border-radius); padding: 15px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .weather-icon { font-size: 24px; color: var(--warning); margin-bottom: 6px; text-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+        .weather-temp { font-family: var(--font-mono); font-size: 20px; font-weight: 700; margin: 0; }
+        .weather-desc { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 4px; text-transform: capitalize;}
+        .weather-location { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px; width: 100%; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .weather-location:hover { color: var(--text-main); }
+        
+        .resume-card { background: var(--card-bg); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .resume-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .resume-title { color: var(--warning); font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .resume-desc { font-size: 11px; color: var(--text-muted); line-height: 1.3; margin: 0 0 12px 0; }
+        
+        .resume-inner-box { background: var(--box-bg); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
+        .resume-item { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
+        .resume-label { font-size: 9px; font-weight: 800; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+        .resume-val { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-main); }
+        
+        /* TIMERS & PROGRESS BARS */
+        .active-timers-wrapper { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .separate-timer-box { flex: 1; min-width: 200px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 15px 20px; display: flex; flex-direction: column; justify-content: center; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .separate-timer-box.t-irr { border-left: 4px solid var(--primary); }
+        .separate-timer-box.t-fert { border-left: 4px solid var(--fert-color); }
+        .separate-timer-box.t-paused { border-left: 4px solid var(--danger); }
+        
+        .timer-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .timer-info-col { display: flex; flex-direction: column; gap: 4px; }
+        .timer-label { font-size: 10px; font-weight: 800; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+        .timer-target-name { font-size: 15px; font-weight: 700; color: var(--text-main); }
+        .live-timer { font-family: var(--font-mono); font-size: 28px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        
+        .progress-bg { width: 100%; height: 6px; background: var(--input-bg); border-radius: 4px; overflow: hidden; margin-top: 15px; border: 1px solid var(--card-border); }
+        .progress-fill { height: 100%; width: 0%; border-radius: 4px; transition: width 1s linear; box-shadow: 0 0 10px currentColor; }
+        
+        .section-title { font-size: 12px; font-weight: 800; margin: 0 0 12px 5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;}
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 30px; }
+        
+        .control-card { background: var(--card-bg); border: 1px solid var(--card-border); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: flex-start; transition: all 0.2s ease; position: relative; }
+        .card-header { display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 12px; }
+        .card-icon { font-size: 20px; color: var(--card-border); transition: 0.3s; display: inline-block; animation: none; }
+        .card-title { font-size: 14px; font-weight: 700; color: var(--text-main); width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-status { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        
+        .control-card.active-irr { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); box-shadow: 0 0 15px var(--primary-glow); }
+        .control-card.active-irr .card-icon { color: var(--primary); }
+        .control-card.active-irr .card-status { color: var(--primary); }
+        .control-card.active-fert { border-color: var(--fert-color); background: rgba(16, 185, 129, 0.05); box-shadow: 0 0 15px var(--fert-glow); }
+        .control-card.active-fert .card-icon { color: var(--fert-color); }
+        .control-card.active-fert .card-status { color: var(--fert-color); }
+        .control-card.paused { border-color: var(--danger); background: rgba(239, 68, 68, 0.05); box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+        .control-card.paused .card-icon { color: var(--danger); }
+        .control-card.paused .card-status { color: var(--danger); font-weight: 700; }
+        .control-card.pump-running .card-icon { animation: spinAround 2s linear infinite; }
+        
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--card-border); transition: .3s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--text-main); transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider.fert-slider { background-color: var(--fert-color); }
+        input:checked + .slider.bw-slider { background-color: var(--bw-color); }
+        input:checked + .slider.warn-slider { background-color: var(--warning); }
+        input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
+        input:disabled + .slider { opacity: 0.3; cursor: not-allowed; }
+        
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--header-bg); backdrop-filter: blur(12px); border-top: 1px solid var(--card-border); padding: 15px 20px; padding-bottom: max(15px, env(safe-area-inset-bottom)); display: flex; justify-content: center; z-index: 100; gap: 15px;}
+        .btn-schedule { background: var(--text-main); color: var(--bg-dark); border: none; padding: 14px 20px; border-radius: 30px; font-size: 13px; font-weight: 800; cursor: pointer; width: 100%; max-width: 300px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-schedule:active { transform: scale(0.97); }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); width: 50px; padding: 0; flex-shrink: 0; border-radius: 50%;}
+        .btn-danger:hover { background: var(--danger); color: white; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 999; overflow-y: auto; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal-header { background: var(--header-bg); backdrop-filter: blur(10px); padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; border-bottom: 1px solid var(--card-border); z-index: 10; }
+        .modal-header h2 { margin: 0; font-size: 18px; font-weight: 800;}
+        .close-btn { background: var(--card-bg); border: 1px solid var(--card-border); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text-main); transition: 0.2s; }
+        .close-btn:hover { background: rgba(128,128,128,0.1); }
+        
+        .schedule-card { background: var(--card-bg); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--card-border); border-left: 4px solid var(--primary); }
+        .schedule-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
+        .schedule-info h4 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-weight: 700;}
+        .schedule-info p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 4px; }
+        
+        .action-btns { margin-top: 12px; display: flex; gap: 10px; border-top: 1px solid var(--card-border); padding-top: 12px; }
+        .action-btns button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; font-size: 12px; transition: 0.2s;}
+        .btn-delete { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .btn-edit { background: rgba(59, 130, 246, 0.1); color: var(--primary); border: 1px solid rgba(59, 130, 246, 0.3); }
+        
+        .btn-create { background: var(--primary); color: white; border: none; padding: 14px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;}
+        
+        .setup-card { background: var(--card-bg); border: 1px solid var(--card-border); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        .setup-card h3 { margin-top: 0; font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px; color: var(--text-muted); text-transform: uppercase;}
+        
+        input[type="email"], input[type="password"], input[type="time"], input[type="number"], input[type="text"] { font-family: var(--font-mono); font-size: 15px; font-weight: 700; padding: 10px; background: var(--input-bg); border: 1px solid var(--card-border); color: var(--text-main); border-radius: 8px; width: 100%; box-sizing: border-box; }
+        input[type="time"], input[type="number"] { font-size: 16px; }
+        
+        .day-selector { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .day-pill { display: inline-block; padding: 6px 10px; background: var(--input-bg); border: 1px solid var(--card-border); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; }
+        .day-checkbox { display: none; }
+        .day-checkbox:checked + .day-pill { background: rgba(59, 130, 246, 0.1); color: var(--primary); border-color: var(--primary); }
+        .day-checkbox.fert-cb:checked + .day-pill { background: rgba(16, 185, 129, 0.1); color: var(--fert-color); border-color: var(--fert-color); }
+        .day-checkbox.bw-cb:checked + .day-pill { background: rgba(168, 85, 247, 0.1); color: var(--bw-color); border-color: var(--bw-color); }
+        
+        .zone-setup { background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); border-radius: 12px; padding: 15px; margin-bottom: 20px; }
+        .zone-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: 800; font-size: 14px;}
+        .input-group { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: var(--card-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border);}
+        .input-group input { width: 70px; text-align: center; }
+        
+        .fert-row { background: var(--card-bg); border: 1px dashed var(--card-border); padding: 12px; border-radius: 8px; margin-bottom: 10px; position: relative;}
+        .remove-fert { position: absolute; top: 10px; right: 10px; color: var(--danger); cursor: pointer; background: rgba(239, 68, 68, 0.1); border: none; font-size: 12px; height: 24px; width: 24px; border-radius: 6px; display: flex; align-items:center; justify-content:center;}
+        .fert-row select { padding: 8px; border-radius: 6px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--card-border); margin-right: 8px; font-size: 13px; font-weight: 600;}
+        .btn-add-fert { background: transparent; color: var(--primary); border: 1px dashed var(--primary); padding: 10px; width: 100%; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; transition: 0.2s;}
+        
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; backdrop-filter: blur(5px); }
+        .mini-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card-bg); border: 1px solid var(--card-border); width: 90%; max-width: 320px; padding: 20px; border-radius: 16px; box-shadow: var(--shadow); }
+        .mini-modal h3 { margin-top: 0; font-size: 16px; font-weight: 800; color: var(--text-main); text-align: center;}
+        .mini-modal p { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; text-align: center; line-height: 1.5;}
+        .mini-modal input { text-align: center; margin-bottom: 20px;}
+        .mini-modal-btns { display: flex; gap: 10px; }
+        .mini-modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+        .btn-cancel { background: var(--card-border); color: var(--text-main); }
+        .btn-confirm { background: var(--primary); color: white; }
+        
+        #criticalAlertOverlay .mini-modal { border: 2px solid var(--danger); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
+        #criticalAlertOverlay h3 { color: var(--danger); }
+        #criticalAlertOverlay .btn-confirm { background: var(--danger); }
+        
+        #autoRecoveryOverlay .mini-modal { border: 2px solid var(--warning); box-shadow: 0 0 30px rgba(245, 158, 11, 0.4); }
+        #autoRecoveryOverlay h3 { color: var(--warning); }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <i class="fa-solid fa-shield-halved"></i>
+            <h2>SIP Console</h2>
+            <p>Restricted access. Please authenticate.</p>
+            <input type="email" id="login-email" placeholder="Email Address">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button class="btn-login" onclick="loginUser()"><i class="fa-solid fa-lock-open"></i> Access Console</button>
+            <div id="login-error">Invalid credentials. Please try again.</div>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <div class="header">
+            <div class="brand-title"><i class="fa-solid fa-layer-group"></i> SIP-CONSOLE</div>
+            <div class="header-right">
+                <div class="sys-clock" id="sys-clock">00:00:00</div>
+                <div class="wifi-status" id="wifi-display" title="WiFi Signal Strength"><i class="fa-solid fa-wifi"></i> -- dBm</div>
+                <div class="connection-status status-offline" id="heartbeat-display"><div class="pulse-dot"></div> OFFLINE</div>
+                <!-- Theme Switcher Button -->
+                <button class="btn-theme" onclick="cycleTheme()" title="Change Theme"><i class="fa-solid fa-circle-half-stroke"></i></button>
+                <button class="btn-logout" onclick="logoutUser()" title="Secure Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="top-dashboard">
+                <div class="telemetry-card" id="hero-dashboard">
+                    <div class="telemetry-header">
+                        <div>
+                            <h3 class="telemetry-title">System Status</h3>
+                            <!-- Hero Title directly displays the Active Zone OR Power Failure -->
+                            <div class="telemetry-main-status" id="hero-title">STANDBY</div>
+                            <div class="telemetry-sub" id="hero-subtitle">Awaiting schedule execution.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="motor-status-grid">
+                        <div class="motor-indicator" id="motor-main-ind"><i class="fa-solid fa-water"></i> Main Pump: OFF</div>
+                        <div class="motor-indicator" id="motor-fert-ind"><i class="fa-solid fa-flask"></i> Fert Pump: OFF</div>
+                    </div>
+
+                    <div class="power-status-grid">
+                        <div class="power-box">
+                            <div class="power-label"><i class="fa-solid fa-bolt"></i> VOLTAGE</div>
+                            <div class="power-val" id="pzem-volt">-- V</div>
+                        </div>
+                        <div class="power-box">
+                            <div class="power-label"><i class="fa-solid fa-wave-square"></i> CURRENT</div>
+                            <div class="power-val" id="pzem-curr">-- A</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="weather-card">
+                    <i class="fa-solid fa-cloud-sun weather-icon" id="weather-icon"></i>
+                    <div class="weather-temp" id="weather-temp">--°C</div>
+                    <div class="weather-desc" id="weather-desc">Fetching data...</div>
+                    <div class="weather-location" onclick="openLocationModal()">
+                        <i class="fa-solid fa-location-dot"></i> <span id="loc-name">Local Environment</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Timers Container & Progress Bar moved UP -->
+            <div class="active-timers-wrapper" id="standalone-timers" style="display:none;">
+                <div class="separate-timer-box t-irr" id="timer-box-irr" style="display:none;">
+                    <div class="timer-top-row">
+                        <div class="timer-info-col">
+                            <div class="timer-label" id="timer-label-irr">ZONE REMAINING</div>
+                            <div class="timer-target-name" id="timer-name-irr">Zone 1</div>
+                        </div>
+                        <div class="live-timer" id="live-timer-irr" style="color:var(--primary);">00:00</div>
+                    </div>
+                    <!-- Irrigation Progress Bar -->
+                    <div class="progress-bg">
+                        <div class="progress-fill" id="progress-irr" style="background: var(--primary); color: var(--primary);"></div>
+                    </div>
+                </div>
+                
+                <div class="separate-timer-box t-fert" id="timer-box-fert" style="display:none;">
+                    <div class="timer-top-row">
+                        <div class="timer-info-col">
+                            <div class="timer-label" id="timer-label-fert">COMP REMAINING</div>
+                            <div class="timer-target-name" id="timer-name-fert">Comp 1</div>
+                        </div>
+                        <div class="live-timer" id="live-timer-fert" style="color:var(--fert-color);">00:00</div>
+                    </div>
+                    <!-- Fertilizer Progress Bar -->
+                    <div class="progress-bg">
+                        <div class="progress-fill" id="progress-fert" style="background: var(--fert-color); color: var(--fert-color);"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact Pending Irrigation Card moved DOWN -->
+            <div class="resume-card">
+                <div class="resume-header">
+                    <div class="resume-title"><i class="fa-solid fa-clock-rotate-left"></i> Pending Irrigation</div>
+                    <label class="switch" style="transform: scale(0.85); transform-origin: right;">
+                        <input type="checkbox" id="dash-resume-toggle" onchange="toggleResumeFeature(this.checked)">
+                        <span class="slider warn-slider"></span>
+                    </label>
+                </div>
+                <p class="resume-desc">Auto-resume incomplete zones on power restore.</p>
+                <div class="resume-inner-box">
+                    <div class="resume-item">
+                        <div class="resume-label">ZONE</div>
+                        <div class="resume-val" id="dash-pending-zone">No Task</div>
+                    </div>
+                    <div class="resume-item">
+                        <div class="resume-label">REMAINING</div>
+                        <div class="resume-val" id="dash-pending-time">00:00</div>
+                    </div>
+                    <div class="resume-item">
+                        <div class="resume-label">STATUS</div>
+                        <div class="resume-val" id="dash-resume-status" style="color: var(--text-muted);">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title"><i class="fa-solid fa-droplet"></i> Irrigation Zones</div>
+            <div class="grid" id="irr-grid"></div>
+
+            <div class="section-title" style="margin-top: 5px;"><i class="fa-solid fa-flask"></i> Fertilizer Compartments</div>
+            <div class="grid" id="fert-grid"></div>
+
+        </div>
+
+        <div class="bottom-bar">
+            <button class="btn-schedule" onclick="openScheduleHub()"><i class="fa-solid fa-sliders"></i> SETTINGS</button>
+            <button class="btn-schedule btn-danger" onclick="triggerManualEmergencyStop()" title="Emergency Stop"><i class="fa-solid fa-power-off"></i></button>
+        </div>
+        
+        <div class="modal" id="scheduleHubModal">
+            <div class="modal-header">
+                <h2>Automations & Config</h2>
+                <button class="close-btn" onclick="closeScheduleHub()"><i class="fa-solid fa-arrow-left"></i> Back</button>
+            </div>
+            <div class="container">
+                <h3 style="margin-top: 5px; font-size: 13px; font-weight: 700; color:var(--text-muted); text-transform:uppercase;">Watering Schedules</h3>
+                <div id="active-schedules-list">
+                    <p style="text-align:center; color:var(--text-muted); margin-top:20px; font-family:var(--font-mono);"><i class="fa-solid fa-spinner fa-spin"></i> Loading data...</p>
+                </div>
+                <button class="btn-create" onclick="openScheduleCreator()" style="margin-bottom: 25px;"><i class="fa-solid fa-plus"></i> Create New Schedule</button>
+
+                <div class="setup-card" style="border: 1px solid var(--bw-color);">
+                    <h3 style="color: var(--bw-color); border-bottom-color: var(--card-border);"><i class="fa-solid fa-recycle"></i> Backwash (Flush) Configuration</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                        <span style="font-size:13px; color:var(--text-main); font-weight:700;">Enable Auto-Backwash</span>
+                        <label class="switch"><input type="checkbox" id="bw-toggle"><span class="slider bw-slider"></span></label>
+                    </div>
+                    <div class="input-group">
+                        <span style="font-size:12px; font-weight:600;">Run Time</span>
+                        <input type="time" id="bw-time" value="00:00" style="width:110px; font-size:14px; padding:6px; text-align:center;">
+                    </div>
+                    <div class="input-group">
+                        <span style="font-size:12px; font-weight:600;">Duration (Mins)</span>
+                        <input type="number" id="bw-dur" value="5" min="1" style="width:70px; font-size:14px; padding:6px; text-align:center;">
+                    </div>
+                    <div style="margin-top:10px;">
+                        <span style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">EXECUTION DAYS:</span>
+                        <div class="day-selector" id="bw-days"></div>
+                    </div>
+                    <button style="width:100%; margin-top:15px; padding:10px; background:rgba(168, 85, 247, 0.1); color:var(--bw-color); border:1px solid rgba(168, 85, 247, 0.3); border-radius:8px; font-weight:700; cursor:pointer; font-size: 13px;" onclick="saveBackwashConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+                </div>
+
+                <div class="setup-card" style="border: 1px solid var(--warning);">
+                    <h3 style="color: var(--warning); border-bottom-color: var(--card-border);"><i class="fa-solid fa-shield-halved"></i> Motor Protection Limits</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                        <span style="font-size:13px; color:var(--text-main); font-weight:700;">Enable Hardware Protection</span>
+                        <label class="switch"><input type="checkbox" id="prot-toggle"><span class="slider warn-slider"></span></label>
+                    </div>
+                    <div class="input-group">
+                        <span style="font-size:12px; font-weight:600;">Voltage Limits (V)</span>
+                        <div style="display:flex; align-items:center;">
+                            <input type="number" id="prot-min-v" placeholder="Min" style="width:60px; padding:6px; font-size:13px; text-align:center;"> <span style="margin: 0 6px; color:var(--text-muted);">-</span>
+                            <input type="number" id="prot-max-v" placeholder="Max" style="width:60px; padding:6px; font-size:13px; text-align:center;">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <span style="font-size:12px; font-weight:600;">Current Limits (A)</span>
+                        <div style="display:flex; align-items:center;">
+                            <input type="number" id="prot-min-a" step="0.1" placeholder="Dry" title="Minimum Amps (Dry Run)" style="width:60px; padding:6px; font-size:13px; text-align:center;"> <span style="margin: 0 6px; color:var(--text-muted);">-</span>
+                            <input type="number" id="prot-max-a" step="0.1" placeholder="Over" title="Maximum Amps (Overload)" style="width:60px; padding:6px; font-size:13px; text-align:center;">
+                        </div>
+                    </div>
+                    <button style="width:100%; margin-top:15px; padding:10px; background:rgba(245, 158, 11, 0.1); color:var(--warning); border:1px solid rgba(245, 158, 11, 0.3); border-radius:8px; font-weight:700; cursor:pointer; font-size: 13px;" onclick="saveProtectionLimits()"><i class="fa-solid fa-floppy-disk"></i> Save Limits</button>
+                </div>
+
+                <div class="setup-card" style="border: 1px solid var(--primary); margin-bottom: 40px;">
+                    <h3 style="color: var(--primary); border-bottom-color: var(--card-border);"><i class="fa-solid fa-tags"></i> Custom System Labels</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+                        <div>
+                            <span style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:block; font-weight:700;">Rename Zones</span>
+                            <div id="labels-zone-container" style="display:flex; flex-direction:column; gap:6px;"></div>
+                        </div>
+                        <div>
+                            <span style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:block; font-weight:700;">Rename Compartments</span>
+                            <div id="labels-fert-container" style="display:flex; flex-direction:column; gap:6px;"></div>
+                        </div>
+                    </div>
+                    <button style="width:100%; padding:10px; background:rgba(59, 130, 246, 0.1); color:var(--primary); border:1px solid rgba(59, 130, 246, 0.3); border-radius:8px; font-weight:700; cursor:pointer; font-size: 13px;" onclick="saveSystemLabels()"><i class="fa-solid fa-floppy-disk"></i> Save Labels</button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="modal" id="scheduleCreatorModal">
+            <div class="modal-header">
+                <h2 id="scheduleModalTitle">Create Schedule</h2>
+                <button class="close-btn" onclick="closeScheduleCreator()">Cancel</button>
+            </div>
+            <div class="container" style="padding-top: 10px;">
+                
+                <!-- SAVE SCHEDULE BUTTON MOVED TO TOP -->
+                <button class="btn-create" id="btn-save-schedule" onclick="saveSchedule()" style="margin-top: 0; margin-bottom: 25px;"><i class="fa-solid fa-check"></i> Save Schedule</button>
+
+                <div class="setup-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h3 style="margin:0; border:none; padding:0;">Start Times (Max 5)</h3>
+                        <button class="btn-cancel" style="padding: 6px 10px; font-size:11px;" onclick="addStartTime()"><i class="fa-solid fa-plus"></i> Add Time</button>
+                    </div>
+                    <div id="start-times-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+                </div>
+
+                <div class="setup-card">
+                    <h3>Watering Days</h3>
+                    <div class="day-selector" id="master-days"></div>
+                </div>
+
+                <div class="setup-card" style="margin-bottom: 50px;">
+                    <h3>Zone & Compartment Matrix</h3>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px; line-height:1.4;">Set base watering time per zone. Add up to 4 fertilizer injections per zone.</p>
+                    <div id="zone-config-container"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="overlay" id="manualTimerOverlay">
+            <div class="mini-modal">
+                <h3 id="manualTimerTitle">Manual Override</h3>
+                <p id="manualTimerDesc">Enter run duration in minutes. Leave as 0 for continuous run.</p>
+                <input type="number" id="manualTimerMins" min="0" value="10">
+                <div class="mini-modal-btns">
+                    <button class="btn-cancel" onclick="cancelManualTimer()">Cancel</button>
+                    <button class="btn-confirm" id="manualTimerConfirmBtn" onclick="confirmManualTimer()">Start</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="overlay" id="criticalAlertOverlay">
+            <div class="mini-modal">
+                <h3><i class="fa-solid fa-triangle-exclamation"></i> EMERGENCY TRIP</h3>
+                <p id="criticalAlertDesc" style="font-weight:600; font-size:13px; margin-top:8px;">The system was halted manually.</p>
+                <p style="font-size:11px; color:var(--text-muted); margin-bottom:20px;">Pumps and valves have been safely locked. The system will auto-clear this notification shortly.</p>
+                <div class="mini-modal-btns">
+                    <button class="btn-confirm" onclick="clearEmergencyStop()" style="width:100%;"><i class="fa-solid fa-xmark"></i> Close Alert</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="overlay" id="autoRecoveryOverlay">
+            <div class="mini-modal" style="background: var(--card-bg);">
+                <h3 style="color: var(--warning);"><i class="fa-solid fa-bolt"></i> POWER FAULT DETECTED</h3>
+                <p id="autoRecoveryDesc" style="font-weight:600; font-size:13px; margin-top:8px;"></p>
+                <div style="background: var(--box-bg); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-size:11px; color:var(--text-main); margin:0;">
+                        <i class="fa-solid fa-stopwatch fa-spin" style="margin-right: 5px;"></i> Hardware is locked. System is monitoring power for 30 seconds of stability before auto-resuming.
+                    </p>
+                </div>
+                <button class="btn-cancel" onclick="document.getElementById('autoRecoveryOverlay').style.display='none'" style="width:100%;"><i class="fa-solid fa-xmark"></i> Close Alert</button>
+            </div>
+        </div>
+
+        <div class="overlay" id="locationModalOverlay">
+            <div class="mini-modal">
+                <h3>Set Weather Location</h3>
+                <input type="text" id="cityInput" placeholder="e.g., London, Dubai">
+                <div class="mini-modal-btns">
+                    <button class="btn-cancel" onclick="document.getElementById('locationModalOverlay').style.display='none'">Cancel</button>
+                    <button class="btn-confirm" onclick="saveLocation()">Search</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAbfqRl4T3cv6cjZz9wT9J9cOjOenp-UJY",
+            databaseURL: "https://smart-irrigation-c039f-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // --- Theme System ---
+        const themes = ['dark', 'light', 'black'];
+        let currentThemeIndex = themes.indexOf(localStorage.getItem('appTheme') || 'dark');
+        if (currentThemeIndex === -1) currentThemeIndex = 0;
+
+        function applyTheme() {
+            document.body.classList.remove('theme-light', 'theme-black');
+            let t = themes[currentThemeIndex];
+            if (t === 'light') document.body.classList.add('theme-light');
+            if (t === 'black') document.body.classList.add('theme-black');
+            localStorage.setItem('appTheme', t);
+        }
+        applyTheme();
+
+        function cycleTheme() {
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            applyTheme();
+        }
+        // --------------------
+
+        const loginScreen = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        const loginError = document.getElementById('login-error');
+
+        let zoneLabels = ["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6"];
+        let fertLabels = ["Compartment 1", "Compartment 2", "Compartment 3", "Compartment 4"];
+
+        // Timer Progress Variables
+        let isTimerFrozen = false;
+        let frozenIrrRem = 0;
+        let frozenFertRem = 0;
+        let maxIrrSec = 0;
+        let maxFertSec = 0;
+        let lastIrrZone = 0;
+        let lastFertZone = 0;
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                loginScreen.style.display = 'none';
+                mainApp.style.display = 'block';
+                initAppListeners();
+            } else {
+                loginScreen.style.display = 'flex';
+                mainApp.style.display = 'none';
+            }
+        });
+
+        function loginUser() {
+            const email = document.getElementById('login-email').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+            loginError.style.display = 'none';
+            if(!email || !pass) {
+                loginError.innerText = "Please enter email and password.";
+                loginError.style.display = 'block';
+                return;
+            }
+            auth.signInWithEmailAndPassword(email, pass).catch((error) => {
+                loginError.innerText = "Invalid credentials. Please check your Firebase setup.";
+                loginError.style.display = 'block';
+            });
+        }
+
+        function logoutUser() {
+            auth.signOut();
+        }
+
+        function updateClock() {
+            document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let weatherLat = localStorage.getItem('weatherLat') || 10.76;
+        let weatherLon = localStorage.getItem('weatherLon') || 76.32;
+        let weatherCity = localStorage.getItem('weatherCity') || "Chunangad, Kerala";
+
+        function openLocationModal() {
+            document.getElementById('cityInput').value = weatherCity;
+            document.getElementById('locationModalOverlay').style.display = 'block';
+        }
+
+        async function saveLocation() {
+            const city = document.getElementById('cityInput').value.trim();
+            if(!city) return;
+            document.getElementById('weather-desc').innerText = "Locating...";
+            document.getElementById('locationModalOverlay').style.display = 'none';
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
+                const data = await res.json();
+                if(data.results && data.results.length > 0) {
+                    weatherLat = data.results[0].latitude;
+                    weatherLon = data.results[0].longitude;
+                    weatherCity = data.results[0].name + (data.results[0].country ? `, ${data.results[0].country}` : "");
+                    localStorage.setItem('weatherLat', weatherLat);
+                    localStorage.setItem('weatherLon', weatherLon);
+                    localStorage.setItem('weatherCity', weatherCity);
+                    fetchWeather();
+                } else {
+                    alert("City not found.");
+                    document.getElementById('weather-desc').innerText = "Location Error";
+                }
+            } catch(e) {
+                alert("Error finding location.");
+                document.getElementById('weather-desc').innerText = "Network Error";
+            }
+        }
+
+        async function fetchWeather() {
+            try {
+                document.getElementById('loc-name').innerText = weatherCity;
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLon}&current=temperature_2m,weather_code,wind_speed_10m`);
+                const data = await res.json();
+                const w = data.current;
+                
+                document.getElementById('weather-temp').innerText = `${Math.round(w.temperature_2m)}°C`;
+                document.getElementById('weather-desc').innerText = `Wind: ${w.wind_speed_10m} km/h`;
+                
+                let icon = "fa-cloud";
+                if(w.weather_code === 0) icon = "fa-sun";
+                else if(w.weather_code < 4) icon = "fa-cloud-sun";
+                else if(w.weather_code <= 67) icon = "fa-cloud-rain";
+                else if(w.weather_code >= 95) icon = "fa-cloud-bolt";
+                
+                document.getElementById('weather-icon').className = `fa-solid ${icon} weather-icon`;
+            } catch (e) {
+                document.getElementById('weather-desc').innerText = "Data unavailable";
+            }
+        }
+        fetchWeather();
+        setInterval(fetchWeather, 3600000);
+
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const dayVals = [1, 2, 4, 8, 16, 32, 64];
+
+        let localSchedules = {};
+        let currentSysState = {};
+        let pendingManualType = "";
+        let pendingManualId = 0;
+        let editingSlotKey = null;
+        let currentInterlockReason = 0;
+        let alertTimeout;
+        let interlockTimeout;
+
+        for(let i=1; i<=6; i++) {
+            document.getElementById('irr-grid').innerHTML += `<div class="control-card" id="card-irr-${i}"><div class="card-header"><i class="fa-solid fa-droplet card-icon"></i><label class="switch"><input type="checkbox" id="toggle-irr-${i}" onchange="handleManualIrr(${i}, this.checked)"><span class="slider"></span></label></div><div class="card-title" id="title-irr-${i}">Zone ${i}</div><div class="card-status" id="status-irr-${i}">STANDBY</div></div>`;
+        }
+        for(let i=1; i<=4; i++) {
+            document.getElementById('fert-grid').innerHTML += `<div class="control-card" id="card-fert-${i}"><div class="card-header"><i class="fa-solid fa-flask card-icon fert-icon"></i><label class="switch"><input type="checkbox" id="toggle-fert-${i}" onchange="handleManualFert(${i}, this.checked)"><span class="slider fert-slider"></span></label></div><div class="card-title" id="title-fert-${i}">Compartment ${i}</div><div class="card-status" id="status-fert-${i}">STANDBY</div></div>`;
+        }
+
+        let labelZoneHtml = '';
+        let labelFertHtml = '';
+        for(let i=0; i<6; i++) labelZoneHtml += `<input type="text" id="z-rename-${i}" style="font-size:14px; padding:8px;" placeholder="Zone ${i+1}">`;
+        for(let i=0; i<4; i++) labelFertHtml += `<input type="text" id="f-rename-${i}" style="font-size:14px; padding:8px;" placeholder="Compartment ${i+1}">`;
+        document.getElementById('labels-zone-container').innerHTML = labelZoneHtml;
+        document.getElementById('labels-fert-container').innerHTML = labelFertHtml;
+
+        let mDaysHTML = '';
+        let bwDaysHTML = '';
+        for(let i=0; i<7; i++) {
+            mDaysHTML += `<label><input type="checkbox" class="day-checkbox m-day" value="${dayVals[i]}"><span class="day-pill">${dayNames[i]}</span></label>`;
+            bwDaysHTML += `<label><input type="checkbox" class="day-checkbox bw-cb bw-day" value="${dayVals[i]}"><span class="day-pill">${dayNames[i]}</span></label>`;
+        }
+        document.getElementById('master-days').innerHTML = mDaysHTML;
+        document.getElementById('bw-days').innerHTML = bwDaysHTML;
+
+        function rebuildZoneConfigUI() {
+            let zConfigHTML = '';
+            for(let z=0; z<6; z++) {
+                zConfigHTML += `<div class="zone-setup"><div class="zone-header"><span><i class="fa-solid fa-droplet" style="color:var(--primary)"></i> <span id="conf-zname-${z}">${zoneLabels[z]}</span></span></div><div class="input-group"><span style="font-weight:600; font-size:13px; color:var(--text-main);">Water Duration</span><div style="display:flex; align-items:center;"><input type="number" id="z-irrDur-${z}" min="0" value="0"> <span style="font-size:11px; font-weight:600; color:var(--text-muted); margin-left:6px;">mins</span></div></div><div class="fert-container" id="fert-container-${z}"></div><button class="btn-add-fert" onclick="addFertRow(${z})"><i class="fa-solid fa-plus"></i> Add Fertilizer</button></div>`;
+            }
+            document.getElementById('zone-config-container').innerHTML = zConfigHTML;
+        }
+        rebuildZoneConfigUI();
+
+        let startTimesCount = 0;
+        function addStartTime(h = "06", m = "00") {
+            if (startTimesCount >= 5) { alert("Max 5 start times allowed."); return; }
+            let id = startTimesCount++;
+            let html = `<div class="input-group" id="st-row-${id}" style="margin-bottom:0;"><input type="time" id="st-time-${id}" value="${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}" style="width:calc(100% - 40px); font-size:15px;"><button class="remove-fert" onclick="document.getElementById('st-row-${id}').remove(); startTimesCount--;" style="position:static; margin-left:10px;"><i class="fa-solid fa-xmark"></i></button></div>`;
+            document.getElementById('start-times-container').insertAdjacentHTML('beforeend', html);
+        }
+
+        let fertCounts = [0,0,0,0,0,0];
+        function addFertRow(zoneIdx) {
+            if(fertCounts[zoneIdx] >= 4) { alert("Max 4 fertilizers allowed."); return; }
+            let rowId = fertCounts[zoneIdx];
+            let fDaysHTML = '';
+            for(let d=0; d<7; d++) {
+                fDaysHTML += `<label><input type="checkbox" class="day-checkbox fert-cb f-day-${zoneIdx}-${rowId}" value="${dayVals[d]}"><span class="day-pill">${dayNames[d]}</span></label>`;
+            }
+            let html = `<div class="fert-row" id="frow-${zoneIdx}-${rowId}"><button class="remove-fert" onclick="removeFertRow(${zoneIdx}, ${rowId})"><i class="fa-solid fa-xmark"></i></button><div style="margin-bottom: 10px; display:flex; align-items:center; flex-wrap: wrap; gap: 6px;"><select id="sel-comp-${zoneIdx}-${rowId}"><option value="1">${fertLabels[0]}</option><option value="2">${fertLabels[1]}</option><option value="3">${fertLabels[2]}</option><option value="4">${fertLabels[3]}</option></select><input type="time" id="sel-time-${zoneIdx}-${rowId}" required style="width: 100px; padding: 6px; font-size: 13px;"><div style="display:flex; align-items:center;"><input type="number" id="sel-mins-${zoneIdx}-${rowId}" min="1" value="5" style="width:60px; padding:6px; text-align:center;"><span style="font-size:11px; font-weight:600; margin-left:4px; color:var(--text-muted);">mins</span></div></div><div style="font-size:11px; font-weight:700; margin-bottom:6px; color:var(--text-muted);">INJECT ON:</div><div class="day-selector">${fDaysHTML}</div></div>`;
+            document.getElementById(`fert-container-${zoneIdx}`).insertAdjacentHTML('beforeend', html);
+            fertCounts[zoneIdx]++;
+        }
+
+        function removeFertRow(zoneIdx, rowId) {
+            let el = document.getElementById(`frow-${zoneIdx}-${rowId}`);
+            if(el) el.remove();
+        }
+
+        function saveSystemLabels() {
+            let zNames = [];
+            let fNames = [];
+            for(let i=0; i<6; i++) zNames.push(document.getElementById(`z-rename-${i}`).value || `Zone ${i+1}`);
+            for(let i=0; i<4; i++) fNames.push(document.getElementById(`f-rename-${i}`).value || `Compartment ${i+1}`);
+            db.ref('system/labels').set({ zones: zNames, ferts: fNames }).then(() => {
+                alert("Custom labels applied and saved.");
+                closeScheduleHub();
+            });
+        }
+
+        function initAppListeners() {
+            db.ref('system/labels').on('value', (snap) => {
+                let lbls = snap.val() || {};
+                if(lbls.zones) zoneLabels = lbls.zones;
+                if(lbls.ferts) fertLabels = lbls.ferts;
+
+                for(let i=0; i<6; i++) {
+                    let ipt = document.getElementById(`z-rename-${i}`);
+                    if(ipt && document.activeElement !== ipt) ipt.value = zoneLabels[i];
+                    let tEl = document.getElementById(`title-irr-${i+1}`);
+                    if(tEl) tEl.innerText = zoneLabels[i];
+                    let cEl = document.getElementById(`conf-zname-${i}`);
+                    if(cEl) cEl.innerText = zoneLabels[i];
+                }
+                for(let i=0; i<4; i++) {
+                    let ipt = document.getElementById(`f-rename-${i}`);
+                    if(ipt && document.activeElement !== ipt) ipt.value = fertLabels[i];
+                    let tEl = document.getElementById(`title-fert-${i+1}`);
+                    if(tEl) tEl.innerText = fertLabels[i];
+                }
+            });
+
+            db.ref('system/emergencyStop').on('value', (snap) => {
+                if (snap.val() === true) {
+                    db.ref('system/lastTripReason').once('value').then((res) => {
+                        let code = res.val() || 0;
+                        let desc = "Manual Emergency Stop Activated.";
+                        if(code === 1) desc = "FAULT [VOLTAGE]: Grid power is out of safe bounds. Motor halted to prevent coil damage.";
+                        if(code === 2) desc = "FAULT [DRY RUN]: Current dropped below minimum limit. Max auto-retries reached. Check the water source.";
+                        if(code === 3) desc = "FAULT [OVERLOAD]: Current exceeded maximum limit. Max auto-retries reached. The motor may be jammed.";
+                        if(code === 4) desc = "FAULT [SENSOR]: PZEM Power Monitor disconnected or unreadable.";
+                        
+                        document.getElementById('criticalAlertDesc').innerText = desc;
+                        document.getElementById('criticalAlertOverlay').style.display = 'block';
+                        
+                        clearTimeout(alertTimeout);
+                        alertTimeout = setTimeout(() => { clearEmergencyStop(); }, 10000);
+                    });
+                } else {
+                    document.getElementById('criticalAlertOverlay').style.display = 'none';
+                }
+            });
+
+            db.ref('system/interlockReason').on('value', (snap) => {
+                let code = snap.val() || 0;
+                currentInterlockReason = code;
+                
+                let motorProtEnabled = (currentSysState.motorConfig && currentSysState.motorConfig.enabled === true);
+                if (code > 0 && !currentSysState.emergencyStop && motorProtEnabled) {
+                    let desc = "Hardware Interlock Active.";
+                    if(code === 1) desc = "VOLTAGE OUT OF BOUNDS: Grid power is unstable.";
+                    if(code === 2) desc = "DRY RUN DETECTED: Current dropped below minimum limit.";
+                    if(code === 3) desc = "OVERLOAD DETECTED: Current exceeded maximum limit.";
+                    if(code === 4) desc = "SENSOR FAULT: PZEM Power Monitor disconnected.";
+                    
+                    document.getElementById('autoRecoveryDesc').innerText = desc;
+                    document.getElementById('autoRecoveryOverlay').style.display = 'block';
+                    
+                    clearTimeout(interlockTimeout);
+                    interlockTimeout = setTimeout(() => {
+                        document.getElementById('autoRecoveryOverlay').style.display = 'none';
+                    }, 10000);
+                } else {
+                    document.getElementById('autoRecoveryOverlay').style.display = 'none';
+                }
+            });
+
+            db.ref('system/motorConfig').on('value', (snap) => {
+                let conf = snap.val() || {};
+                document.getElementById('prot-toggle').checked = conf.enabled || false;
+                if(conf.minV) document.getElementById('prot-min-v').value = conf.minV;
+                if(conf.maxV) document.getElementById('prot-max-v').value = conf.maxV;
+                if(conf.minA) document.getElementById('prot-min-a').value = conf.minA;
+                if(conf.maxA) document.getElementById('prot-max-a').value = conf.maxA;
+            });
+
+            db.ref('system').on('value', (snap) => {
+                currentSysState = snap.val() || {};
+                
+                let resState = currentSysState.resume || {};
+                let isResEnabled = (resState.enabled === true);
+                
+                document.getElementById('dash-resume-toggle').checked = isResEnabled;
+
+                let pendingZone = currentSysState.pendingZone || 0;
+                let pendingSeconds = currentSysState.pendingRemain || 0;
+                
+                let zName = (pendingZone > 0 && pendingZone <= 6) ? zoneLabels[pendingZone - 1] : "No Task";
+                
+                let zTime = "00:00";
+                if (pendingZone > 0 && pendingSeconds > 0) {
+                    let minutes = Math.floor(pendingSeconds / 60);
+                    let seconds = pendingSeconds % 60;
+                    zTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+                
+                let zStatus = isResEnabled ? "ACTIVE" : "INACTIVE";
+                let statusColor = isResEnabled ? "var(--fert-color)" : "var(--danger)";
+                
+                if (pendingZone === 0 || pendingSeconds === 0) {
+                     zStatus = "--";
+                     statusColor = "var(--text-muted)";
+                }
+
+                document.getElementById('dash-pending-zone').innerText = zName;
+                document.getElementById('dash-pending-time').innerText = zTime;
+                document.getElementById('dash-resume-status').innerText = zStatus;
+                document.getElementById('dash-resume-status').style.color = statusColor;
+            });
+
+            db.ref('schedules/backwash').on('value', (snap) => {
+                let bw = snap.val() || {};
+                document.getElementById('bw-toggle').checked = bw.active || false;
+                document.getElementById('bw-time').value = `${String(bw.hour||0).padStart(2,'0')}:${String(bw.minute||0).padStart(2,'0')}`;
+                document.getElementById('bw-dur').value = bw.durationMins || 5;
+                document.querySelectorAll('.bw-day').forEach(cb => cb.checked = ((bw.days & parseInt(cb.value)) !== 0));
+            });
+
+            db.ref('schedules').on('value', (snap) => {
+                let data = snap.val() || {};
+                localSchedules = data;
+                
+                const listDiv = document.getElementById('active-schedules-list');
+                listDiv.innerHTML = "";
+                
+                let hasSchedules = false;
+                
+                for (let s=0; s<3; s++) {
+                    let key = 'slot_' + s;
+                    let sched = data[key];
+                    if (!sched || (!sched.hour && !sched.starts)) continue;
+                    
+                    hasSchedules = true;
+                    
+                    let stText = "";
+                    if (sched.starts && sched.starts.length > 0) {
+                        let stArray = [];
+                        sched.starts.forEach(st => {
+                            if (st) stArray.push(`${String(st.hour).padStart(2, '0')}:${String(st.minute).padStart(2, '0')}`);
+                        });
+                        stText = stArray.join(" &bull; ");
+                    } else {
+                        stText = `${String(sched.hour || 6).padStart(2, '0')}:${String(sched.minute || 0).padStart(2, '0')}`;
+                    }
+
+                    let activeDays = [];
+                    for(let i=0; i<7; i++) {
+                        if((sched.days & dayVals[i]) !== 0) activeDays.push(dayNames[i]);
+                    }
+                    
+                    listDiv.innerHTML += `<div class="schedule-card"><div class="schedule-header-row"><div class="schedule-info"><h4><i class="fa-regular fa-clock" style="color:var(--text-muted); font-size:16px;"></i> ${stText}</h4></div><label class="switch"><input type="checkbox" ${sched.active ? 'checked' : ''} onchange="toggleScheduleActive('${key}', this.checked)"><span class="slider"></span></label></div><div class="schedule-info"><p><strong>DAYS:</strong> ${activeDays.length === 7 ? "Everyday" : activeDays.join(", ")}</p><p><strong>STATUS:</strong> ${sched.active ? '<span style="color:var(--fert-color);font-weight:700;">ACTIVE</span>' : '<span style="color:var(--danger);font-weight:700;">INACTIVE</span>'}</p></div><div class="action-btns"><button class="btn-edit" onclick="openScheduleEditor('${key}')"><i class="fa-solid fa-pen"></i> Edit</button><button class="btn-delete" onclick="deleteSchedule('${key}')"><i class="fa-solid fa-trash"></i> Delete</button></div></div>`;
+                }
+
+                if (!hasSchedules) listDiv.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px; font-weight:600;">No schedules configured.</p>`;
+            });
+
+            setInterval(() => {
+                let sys = currentSysState;
+                if (!sys) return;
+                
+                let nowSec = Math.floor(Date.now() / 1000);
+                let isOnline = (nowSec - (sys.heartbeat || 0)) < 25;
+                
+                let motorProtEnabled = (sys.motorConfig && sys.motorConfig.enabled === true);
+                let isPowerCut = motorProtEnabled && (currentInterlockReason > 0 || (sys.voltage !== undefined && sys.voltage < 100));
+                let systemHalted = motorProtEnabled && (isPowerCut || currentInterlockReason > 0);
+                
+                let activeIrr = sys.activeIrrZone || 0;
+                let activeFert = sys.activeFertZone || 0;
+                let manIrr = sys.manualIrrZone || 0;
+                let manFert = sys.manualFertZone || 0;
+                
+                let p1Active = (sys.pump1Active === true) && !isPowerCut;
+                let fPumpActive = (sys.fertPumpActive === true) && !isPowerCut;
+                let isBwActive = sys.isBackwashActive === true;
+                
+                let irrStop = sys.activeIrrStop || 0;
+                let fertStop = sys.activeFertStop || 0;
+                
+                let calcIrrRem = irrStop > 0 ? irrStop - nowSec : 0;
+                if (calcIrrRem < 0) calcIrrRem = 0;
+
+                let calcFertRem = fertStop > 0 ? fertStop - nowSec : 0;
+                if (calcFertRem < 0) calcFertRem = 0;
+
+                if (systemHalted) {
+                    if (!isTimerFrozen) {
+                        frozenIrrRem = (sys.pendingRemain && sys.pendingRemain > 0) ? sys.pendingRemain : calcIrrRem;
+                        frozenFertRem = calcFertRem; 
+                        isTimerFrozen = true;
+                    }
+                } else {
+                    isTimerFrozen = false;
+                }
+
+                let actualIrrRem = isTimerFrozen ? frozenIrrRem : calcIrrRem;
+                let actualFertRem = isTimerFrozen ? frozenFertRem : calcFertRem;
+
+                let displayIrrZone = activeIrr > 0 ? activeIrr : (manIrr > 0 ? manIrr : 0);
+                let displayFertZone = activeFert > 0 ? activeFert : (manFert > 0 ? manFert : 0);
+
+                // --- TIMER PROGRESS CALCULATION ---
+                if (displayIrrZone !== lastIrrZone) {
+                    lastIrrZone = displayIrrZone;
+                    maxIrrSec = actualIrrRem;
+                } else if (actualIrrRem > maxIrrSec) {
+                    maxIrrSec = actualIrrRem;
+                }
+
+                if (displayFertZone !== lastFertZone) {
+                    lastFertZone = displayFertZone;
+                    maxFertSec = actualFertRem;
+                } else if (actualFertRem > maxFertSec) {
+                    maxFertSec = actualFertRem;
+                }
+
+                let irrProgress = 0;
+                if (maxIrrSec > 0 && actualIrrRem > 0) {
+                    irrProgress = ((maxIrrSec - actualIrrRem) / maxIrrSec) * 100;
+                } else {
+                    irrProgress = 0;
+                    maxIrrSec = 0;
+                }
+
+                let fertProgress = 0;
+                if (maxFertSec > 0 && actualFertRem > 0) {
+                    fertProgress = ((maxFertSec - actualFertRem) / maxFertSec) * 100;
+                } else {
+                    fertProgress = 0;
+                    maxFertSec = 0;
+                }
+                // ----------------------------------
+
+                let hb = document.getElementById('heartbeat-display');
+                let wifiDisplay = document.getElementById('wifi-display');
+                
+                let voltUI = document.getElementById('pzem-volt');
+                let currUI = document.getElementById('pzem-curr');
+
+                if(isOnline) {
+                    hb.className = "connection-status status-online";
+                    hb.innerHTML = `<div class="pulse-dot"></div> ONLINE`;
+                    
+                    let rssi = sys.rssi || 0;
+                    let wifiColor = "var(--text-muted)";
+                    if (rssi < 0) {
+                        if (rssi > -60) { wifiColor = "var(--fert-color)"; }
+                        else if (rssi > -75) { wifiColor = "var(--warning)"; }
+                        else { wifiColor = "var(--danger)"; }
+                        wifiDisplay.innerHTML = `<i class="fa-solid fa-wifi" style="color:${wifiColor}"></i> ${rssi} dBm`;
+                    } else {
+                        wifiDisplay.innerHTML = `<i class="fa-solid fa-wifi"></i> -- dBm`;
+                    }
+
+                    if(sys.voltage === undefined || sys.voltage < 0) {
+                        voltUI.innerHTML = `<span class="power-error"><i class="fa-solid fa-plug-circle-xmark"></i> ERROR</span>`;
+                        currUI.innerHTML = `<span style="opacity:0.3;">-- A</span>`;
+                    } else {
+                        voltUI.innerText = `${parseFloat(sys.voltage).toFixed(1)} V`;
+                        currUI.innerText = `${parseFloat(sys.current).toFixed(2)} A`;
+                        
+                        if (motorProtEnabled) {
+                            if (sys.voltage < sys.motorConfig.minV || sys.voltage > sys.motorConfig.maxV) voltUI.className = "power-val power-error";
+                            else voltUI.className = "power-val";
+                            
+                            if (p1Active && sys.current >= 0) {
+                                if (sys.current < sys.motorConfig.minA || sys.current > sys.motorConfig.maxA) currUI.className = "power-val power-error";
+                                else currUI.className = "power-val";
+                            } else currUI.className = "power-val";
+                        } else {
+                            voltUI.className = "power-val";
+                            currUI.className = "power-val";
+                        }
+                    }
+                } else {
+                    hb.className = "connection-status status-offline";
+                    hb.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> OFFLINE`;
+                    wifiDisplay.innerHTML = `<i class="fa-solid fa-wifi" style="color:var(--text-muted); opacity:0.4;"></i> <span style="opacity:0.4;">-- dBm</span>`;
+                    
+                    voltUI.innerHTML = `<span class="power-error"><i class="fa-solid fa-triangle-exclamation"></i> OFFLINE</span>`;
+                    currUI.innerHTML = `<span style="opacity:0.3;">-- A</span>`;
+                    voltUI.className = "power-val";
+                    currUI.className = "power-val";
+                }
+
+                // HERO DASHBOARD - Updates to show info in top box directly
+                const hero = document.getElementById('hero-dashboard');
+                if (!sys.emergencyStop) {
+                    if (isPowerCut) {
+                        hero.className = "telemetry-card telemetry-paused";
+                        document.getElementById('hero-title').innerText = "POWER FAILURE";
+                        document.getElementById('hero-title').style.color = "var(--danger)";
+                        document.getElementById('hero-subtitle').innerText = "Hardware paused. Waiting for power.";
+                    } else if (isBwActive) {
+                        hero.className = "telemetry-card telemetry-bw";
+                        document.getElementById('hero-title').innerText = "BACKWASH ACTIVE";
+                        document.getElementById('hero-title').style.color = "var(--text-main)";
+                        document.getElementById('hero-subtitle').innerText = "Flushing filters and pipelines.";
+                    } else if (displayIrrZone > 0 || displayFertZone > 0) {
+                        hero.className = "telemetry-card telemetry-active";
+                        document.getElementById('hero-title').innerText = (displayIrrZone > 0 ? `${zoneLabels[displayIrrZone-1].toUpperCase()} ` : "") + (displayFertZone > 0 ? `| ${fertLabels[displayFertZone-1].toUpperCase()}` : "");
+                        document.getElementById('hero-title').style.color = "var(--text-main)";
+                        document.getElementById('hero-subtitle').innerText = "Live System Telemetry";
+                    } else {
+                        hero.className = "telemetry-card";
+                        document.getElementById('hero-title').innerText = "STANDBY";
+                        document.getElementById('hero-title').style.color = "var(--text-main)";
+                        document.getElementById('hero-subtitle').innerText = "Awaiting schedule execution.";
+                    }
+                }
+
+                document.getElementById('motor-main-ind').className = p1Active ? "motor-indicator motor-on m-main" : "motor-indicator";
+                document.getElementById('motor-main-ind').innerHTML = p1Active ? `<i class="fa-solid fa-fan"></i> Main Pump: ON` : `<i class="fa-solid fa-water"></i> Main Pump: OFF`;
+                
+                document.getElementById('motor-fert-ind').className = fPumpActive ? "motor-indicator motor-on m-fert" : "motor-indicator";
+                document.getElementById('motor-fert-ind').innerHTML = fPumpActive ? `<i class="fa-solid fa-gear"></i> Fert Pump: ON` : `<i class="fa-solid fa-flask"></i> Fert Pump: OFF`;
+
+                for(let i=1; i<=6; i++) {
+                    let isZoneActive = (displayIrrZone === i);
+                    let toggle = document.getElementById(`toggle-irr-${i}`);
+                    toggle.checked = isZoneActive;
+                    toggle.disabled = isBwActive || isPowerCut;
+                    
+                    let card = document.getElementById(`card-irr-${i}`);
+                    if (isZoneActive) {
+                        if (isPowerCut) {
+                            card.className = "control-card paused";
+                            document.getElementById(`status-irr-${i}`).innerText = "POWER FAILURE";
+                            card.classList.remove("pump-running");
+                        } else {
+                            card.className = "control-card active-irr";
+                            document.getElementById(`status-irr-${i}`).innerText = "FLOW ACTIVE";
+                            if (p1Active) card.classList.add("pump-running"); else card.classList.remove("pump-running");
+                        }
+                    } else {
+                        card.className = "control-card";
+                        document.getElementById(`status-irr-${i}`).innerText = "STANDBY";
+                    }
+                }
+
+                let disableFerts = (displayIrrZone === 0 || isBwActive || isPowerCut);
+                for(let i=1; i<=4; i++) {
+                    let isFertActive = (displayFertZone === i);
+                    let toggle = document.getElementById(`toggle-fert-${i}`);
+                    toggle.checked = isFertActive;
+                    toggle.disabled = disableFerts;
+
+                    let card = document.getElementById(`card-fert-${i}`);
+                    if (isFertActive) {
+                        if (isPowerCut) {
+                            card.className = "control-card paused";
+                            document.getElementById(`status-fert-${i}`).innerText = "POWER FAILURE";
+                            card.classList.remove("pump-running");
+                        } else {
+                            card.className = "control-card active-fert";
+                            document.getElementById(`status-fert-${i}`).innerText = "INJECTING";
+                            if (fPumpActive) card.classList.add("pump-running"); else card.classList.remove("pump-running");
+                        }
+                    } else {
+                        card.className = "control-card";
+                        if (disableFerts) {
+                            card.style.opacity = "0.4";
+                            card.style.pointerEvents = "none";
+                            document.getElementById(`status-fert-${i}`).innerText = "DISABLED";
+                        } else {
+                            card.style.opacity = "1";
+                            card.style.pointerEvents = "auto";
+                            document.getElementById(`status-fert-${i}`).innerText = "STANDBY";
+                        }
+                    }
+                }
+
+                let boxWrapper = document.getElementById('standalone-timers');
+                let boxI = document.getElementById('timer-box-irr');
+                let lblI = document.getElementById('timer-label-irr');
+                let tmrI = document.getElementById('live-timer-irr');
+                let nameI = document.getElementById('timer-name-irr');
+                let pIrr = document.getElementById('progress-irr');
+                
+                let boxF = document.getElementById('timer-box-fert');
+                let lblF = document.getElementById('timer-label-fert');
+                let tmrF = document.getElementById('live-timer-fert');
+                let nameF = document.getElementById('timer-name-fert');
+                let pFert = document.getElementById('progress-fert');
+
+                let isTimerVisible = false;
+
+                if (displayIrrZone > 0 && !sys.emergencyStop && !isBwActive) {
+                    boxI.style.display = "flex";
+                    isTimerVisible = true;
+                    nameI.innerText = zoneLabels[displayIrrZone - 1];
+                    
+                    if (pIrr) pIrr.style.width = irrProgress + "%";
+                    
+                    if (systemHalted) {
+                        boxI.className = "separate-timer-box t-paused";
+                        lblI.innerText = (currentInterlockReason > 0) ? `PAUSED (INTERLOCK)` : `PAUSED (POWER FAIL)`;
+                        tmrI.innerText = `${Math.floor(actualIrrRem / 60).toString().padStart(2, '0')}:${(actualIrrRem % 60).toString().padStart(2, '0')}`;
+                        tmrI.style.color = "var(--danger)";
+                        if (pIrr) pIrr.style.background = "var(--danger)";
+                    } else if (irrStop > 0) {
+                        boxI.className = "separate-timer-box t-irr";
+                        if(actualIrrRem > 0) {
+                            tmrI.innerText = `${Math.floor(actualIrrRem / 60).toString().padStart(2, '0')}:${(actualIrrRem % 60).toString().padStart(2, '0')}`;
+                            lblI.innerText = `ZONE REMAINING`;
+                            tmrI.style.color = "var(--primary)";
+                            if (pIrr) pIrr.style.background = "var(--primary)";
+                        } else {
+                            lblI.innerText = `FINISHING...`;
+                            tmrI.innerText = "00:00";
+                        }
+                    } else {
+                        boxI.className = "separate-timer-box t-irr";
+                        lblI.innerText = `ZONE ACTIVE`;
+                        tmrI.innerText = "CONT.";
+                        tmrI.style.color = "var(--primary)";
+                        if (pIrr) pIrr.style.width = "100%";
+                    }
+                } else {
+                    boxI.style.display = "none";
+                }
+
+                if (displayFertZone > 0 && !sys.emergencyStop && !isBwActive) {
+                    boxF.style.display = "flex";
+                    isTimerVisible = true;
+                    nameF.innerText = fertLabels[displayFertZone - 1];
+                    
+                    if (pFert) pFert.style.width = fertProgress + "%";
+
+                    if (systemHalted) {
+                        boxF.className = "separate-timer-box t-paused";
+                        lblF.innerText = (currentInterlockReason > 0) ? `PAUSED (INTERLOCK)` : `PAUSED (POWER FAIL)`;
+                        tmrF.innerText = `${Math.floor(actualFertRem / 60).toString().padStart(2, '0')}:${(actualFertRem % 60).toString().padStart(2, '0')}`;
+                        tmrF.style.color = "var(--danger)";
+                        if (pFert) pFert.style.background = "var(--danger)";
+                    } else if (fertStop > 0) {
+                        boxF.className = "separate-timer-box t-fert";
+                        if(actualFertRem > 0) {
+                            tmrF.innerText = `${Math.floor(actualFertRem / 60).toString().padStart(2, '0')}:${(actualFertRem % 60).toString().padStart(2, '0')}`;
+                            lblF.innerText = `COMP REMAINING`;
+                            tmrF.style.color = "var(--fert-color)";
+                            if (pFert) pFert.style.background = "var(--fert-color)";
+                        } else {
+                            lblF.innerText = `FINISHING...`;
+                            tmrF.innerText = "00:00";
+                        }
+                    } else {
+                        boxF.className = "separate-timer-box t-fert";
+                        lblF.innerText = `COMP ACTIVE`;
+                        tmrF.innerText = "CONT.";
+                        tmrF.style.color = "var(--fert-color)";
+                        if (pFert) pFert.style.width = "100%";
+                    }
+                } else {
+                    boxF.style.display = "none";
+                }
+
+                boxWrapper.style.display = isTimerVisible ? "flex" : "none";
+
+            }, 1000);
+        }
+
+        function toggleResumeFeature(isEnabled) {
+            let updates = { 'system/resume/enabled': isEnabled };
+            if (!isEnabled) {
+                updates['system/pendingZone'] = 0;
+                updates['system/pendingRemain'] = 0;
+            }
+            db.ref().update(updates).then(() => {
+                console.log("Resume feature updated: " + isEnabled);
+            });
+        }
+
+        function handleManualIrr(zoneNum, isChecked) {
+            if (isChecked) {
+                document.getElementById(`toggle-irr-${zoneNum}`).checked = false;
+                pendingManualType = "irr";
+                pendingManualId = zoneNum;
+                document.getElementById('manualTimerTitle').innerText = `ENGAGE ${zoneLabels[zoneNum-1].toUpperCase()}`;
+                document.getElementById('manualTimerDesc').innerText = `Enter override duration in minutes. (0 = Continuous)`;
+                document.getElementById('manualTimerMins').value = "10";
+                document.getElementById('manualTimerConfirmBtn').style.background = "var(--primary)";
+                document.getElementById('manualTimerOverlay').style.display = "block";
+            } else {
+                db.ref('system').update({ manualIrrZone: 0, manualIrrMins: 0, activeIrrStop: 0 });
+            }
+        }
+
+        function handleManualFert(compNum, isChecked) {
+            if(!currentSysState.activeIrrZone || currentSysState.activeIrrZone === 0) {
+                document.getElementById(`toggle-fert-${compNum}`).checked = false;
+                return;
+            }
+            if (isChecked) {
+                document.getElementById(`toggle-fert-${compNum}`).checked = false;
+                pendingManualType = "fert";
+                pendingManualId = compNum;
+                document.getElementById('manualTimerTitle').innerText = `ENGAGE ${fertLabels[compNum-1].toUpperCase()}`;
+                document.getElementById('manualTimerDesc').innerText = `Timer will automatically synchronize with active water limits.`;
+                document.getElementById('manualTimerMins').value = "5";
+                document.getElementById('manualTimerConfirmBtn').style.background = "var(--fert-color)";
+                document.getElementById('manualTimerOverlay').style.display = "block";
+            } else {
+                db.ref('system').update({ manualFertZone: 0, manualFertMins: 0, activeFertStop: 0 });
+            }
+        }
+
+        function cancelManualTimer() { document.getElementById('manualTimerOverlay').style.display = "none"; }
+
+        function confirmManualTimer() {
+            let mins = parseInt(document.getElementById('manualTimerMins').value) || 0;
+            currentSysState.activeIrrStop = 0;
+            currentSysState.activeFertStop = 0;
+            if (pendingManualType === "irr") db.ref('system').update({ manualIrrZone: pendingManualId, manualIrrMins: mins, activeIrrStop: 0 });
+            else if (pendingManualType === "fert") db.ref('system').update({ manualFertZone: pendingManualId, manualFertMins: mins, activeFertStop: 0 });
+            cancelManualTimer();
+        }
+
+        function triggerManualEmergencyStop() {
+            if(confirm("🚨 CRITICAL: HALT ALL PUMPS AND VALVES? This will wipe all queues and requires a manual reset.")) {
+                db.ref('system').update({ emergencyStop: true });
+            }
+        }
+
+        function clearEmergencyStop() {
+            db.ref('system').update({ emergencyStop: false, lastTripReason: 0 }).then(() => {
+                document.getElementById('criticalAlertOverlay').style.display = 'none';
+                document.getElementById('hero-dashboard').className = "telemetry-card";
+            });
+        }
+
+        function saveProtectionLimits() {
+            let conf = {
+                enabled: document.getElementById('prot-toggle').checked,
+                minV: parseFloat(document.getElementById('prot-min-v').value) || 190,
+                maxV: parseFloat(document.getElementById('prot-max-v').value) || 250,
+                minA: parseFloat(document.getElementById('prot-min-a').value) || 1.0,
+                maxA: parseFloat(document.getElementById('prot-max-a').value) || 10.0
+            };
+            db.ref('system/motorConfig').set(conf).then(() => { alert("Protection limits saved."); });
+        }
+
+        function saveBackwashConfig() {
+            let timeVal = document.getElementById('bw-time').value;
+            let h = parseInt(timeVal.split(':')[0]);
+            let m = parseInt(timeVal.split(':')[1]);
+            let mask = 0;
+            document.querySelectorAll('.bw-day:checked').forEach(cb => mask += parseInt(cb.value));
+            
+            let data = { active: document.getElementById('bw-toggle').checked, hour: h, minute: m, durationMins: parseInt(document.getElementById('bw-dur').value), days: mask };
+            db.ref('schedules/backwash').set(data).then(() => alert("Backwash schedule saved."));
+        }
+
+        function openScheduleHub() { document.getElementById('scheduleHubModal').style.display = 'block'; }
+        function closeScheduleHub() { document.getElementById('scheduleHubModal').style.display = 'none'; }
+        function toggleScheduleActive(key, isActive) { db.ref(`schedules/${key}/active`).set(isActive); }
+        function deleteSchedule(key) { if(confirm("Permanently purge this automation?")) db.ref(`schedules/${key}`).remove(); }
+
+        function resetScheduleForm() {
+            document.getElementById('start-times-container').innerHTML = "";
+            startTimesCount = 0;
+            addStartTime();
+            document.querySelectorAll('.m-day').forEach(cb => cb.checked = false);
+            for(let z=0; z<6; z++) {
+                document.getElementById(`z-irrDur-${z}`).value = 0;
+                document.getElementById(`fert-container-${z}`).innerHTML = "";
+                fertCounts[z] = 0;
+            }
+        }
+
+        function openScheduleCreator() {
+            editingSlotKey = null;
+            document.getElementById('scheduleModalTitle').innerText = "New Automation";
+            resetScheduleForm();
+            document.getElementById('scheduleCreatorModal').style.display = 'block';
+        }
+
+        function openScheduleEditor(key) {
+            let sched = localSchedules[key];
+            if (!sched) return;
+            editingSlotKey = key;
+            document.getElementById('scheduleModalTitle').innerText = "Modify Automation";
+            resetScheduleForm();
+            
+            document.getElementById('start-times-container').innerHTML = "";
+            startTimesCount = 0;
+            if (sched.starts && sched.starts.length > 0) {
+                sched.starts.forEach(st => { if (st) addStartTime(st.hour, st.minute); });
+            } else { addStartTime(sched.hour || 6, sched.minute || 0); }
+
+            document.querySelectorAll('.m-day').forEach(cb => cb.checked = ((sched.days & parseInt(cb.value)) !== 0));
+            
+            for(let z=0; z<6; z++) {
+                if(sched.zones && sched.zones[z]) {
+                    document.getElementById(`z-irrDur-${z}`).value = sched.zones[z].waterMins || 0;
+                    if(sched.zones[z].ferts) {
+                        sched.zones[z].ferts.forEach((fert) => {
+                            addFertRow(z);
+                            let rowId = fertCounts[z] - 1;
+                            document.getElementById(`sel-comp-${z}-${rowId}`).value = fert.comp;
+                            document.getElementById(`sel-mins-${z}-${rowId}`).value = fert.mins;
+                            document.getElementById(`sel-time-${z}-${rowId}`).value = `${String(fert.startHour || 0).padStart(2, '0')}:${String(fert.startMinute || 0).padStart(2, '0')}`;
+                            document.querySelectorAll(`.f-day-${z}-${rowId}`).forEach(cb => cb.checked = ((fert.days & parseInt(cb.value)) !== 0));
+                        });
+                    }
+                }
+            }
+            document.getElementById('scheduleCreatorModal').style.display = 'block';
+        }
+
+        function closeScheduleCreator() { document.getElementById('scheduleCreatorModal').style.display = 'none'; }
+
+        function saveSchedule() {
+            let startsArray = [];
+            for(let i=0; i<5; i++) {
+                let el = document.getElementById(`st-time-${i}`);
+                if(el && el.value) {
+                    let parts = el.value.split(':');
+                    startsArray.push({ hour: parseInt(parts[0]), minute: parseInt(parts[1]) });
+                }
+            }
+            if(startsArray.length === 0) { alert("At least one execution time required."); return; }
+            
+            let mDaysMask = 0;
+            document.querySelectorAll('.m-day:checked').forEach(cb => mDaysMask += parseInt(cb.value));
+            if(mDaysMask === 0) { alert("Select minimum 1 execution day."); return; }
+
+            let sData = { active: true, starts: startsArray, days: mDaysMask, zones: [] };
+            for(let z=0; z<6; z++) {
+                let zoneObj = { waterMins: parseInt(document.getElementById(`z-irrDur-${z}`).value) || 0 };
+                let validFerts = [];
+                for(let f=0; f<fertCounts[z]; f++) {
+                    let compEl = document.getElementById(`sel-comp-${z}-${f}`);
+                    if(!compEl) continue;
+                    let timeVal = document.getElementById(`sel-time-${z}-${f}`).value;
+                    let startH = 0, startM = 0;
+                    if (timeVal) { startH = parseInt(timeVal.split(':')[0]); startM = parseInt(timeVal.split(':')[1]); } else continue;
+                    
+                    let fDaysMask = 0;
+                    document.querySelectorAll(`.f-day-${z}-${f}:checked`).forEach(cb => fDaysMask += parseInt(cb.value));
+                    
+                    validFerts.push({ comp: parseInt(compEl.value), startHour: startH, startMinute: startM, mins: parseInt(document.getElementById(`sel-mins-${z}-${f}`).value) || 0, days: fDaysMask });
+                }
+                if(validFerts.length > 0) zoneObj.ferts = validFerts;
+                sData.zones.push(zoneObj);
+            }
+
+            let targetSlotKey = editingSlotKey;
+            if (!targetSlotKey) {
+                let schedulesObj = localSchedules || {};
+                for(let i=0; i<3; i++) {
+                    if (!schedulesObj['slot_' + i]) { targetSlotKey = 'slot_' + i; break; }
+                }
+                if (targetSlotKey === null) { alert("Max slots reached. Purge an old automation first."); return; }
+            }
+
+            db.ref(`schedules/${targetSlotKey}`).set(sData).then(() => { closeScheduleCreator(); });
+        }
+    </script>
+</body>
+</html>
